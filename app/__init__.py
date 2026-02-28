@@ -1,0 +1,95 @@
+from flask import Flask
+from flask_login import LoginManager
+from flask_sqlalchemy import SQLAlchemy
+
+from config import Config
+import os
+from sqlalchemy import inspect
+from sqlalchemy.exc import OperationalError
+
+db = SQLAlchemy()
+login_manager = LoginManager()
+login_manager.login_view = "main.login"
+login_manager.login_message_category = "warning"
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    from app.models import User
+
+    return db.session.get(User, int(user_id))
+
+
+def create_app(config_class=Config):
+    app = Flask(__name__, instance_relative_config=True)
+    app.config.from_object(config_class)
+
+    db.init_app(app)
+    login_manager.init_app(app)
+
+    from app.routes import main
+
+    app.register_blueprint(main)
+
+    with app.app_context():
+        db.create_all()
+        _ensure_sqlite_schema()
+        _bootstrap_admin()
+
+    return app
+
+
+def _bootstrap_admin():
+    from app.models import User
+
+    try:
+        if User.query.count() > 0:
+            return
+    except OperationalError:
+        return
+
+    admin_email = os.getenv("DEFAULT_ADMIN_EMAIL")
+    admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
+    admin_name = os.getenv("DEFAULT_ADMIN_NAME", "System Admin")
+
+    if not admin_email or not admin_password:
+        return
+
+    admin = User(
+        username=admin_name,
+        email=admin_email.lower().strip(),
+        role="admin",
+    )
+    admin.set_password(admin_password)
+    db.session.add(admin)
+    db.session.commit()
+
+
+def _ensure_sqlite_schema():
+    if db.engine.url.get_backend_name() != "sqlite":
+        return
+
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+    if not table_names:
+        return
+
+    needs_reset = False
+
+    if "diagnostic_report" not in table_names:
+        needs_reset = True
+
+    if "patient" in table_names:
+        patient_cols = {col["name"] for col in inspector.get_columns("patient")}
+        if "patient_code" not in patient_cols or "full_name" not in patient_cols:
+            needs_reset = True
+
+    if "user" in table_names:
+        user_cols = {col["name"] for col in inspector.get_columns("user")}
+        if "created_at" not in user_cols:
+            needs_reset = True
+
+    allow_reset = os.getenv("ALLOW_SQLITE_RESET", "true").lower() == "true"
+    if needs_reset and allow_reset:
+        db.drop_all()
+        db.create_all()

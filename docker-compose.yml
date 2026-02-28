@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: diagnostics-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-diagnostics}
+      POSTGRES_USER: ${POSTGRES_USER:-diagnostics_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-diagnostics_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-diagnostics_user} -d ${POSTGRES_DB:-diagnostics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: diagnostics-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-diagnostics_user}:${POSTGRES_PASSWORD:-diagnostics_password}@db:5432/${POSTGRES_DB:-diagnostics}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+
+volumes:
+  postgres_data:

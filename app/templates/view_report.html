@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Report Details{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Diagnostic Report #{{ report.id }}</h2>
+    <a href="{{ url_for('main.view_patient', patient_id=report.patient.id) }}" class="btn btn-outline-secondary">Back to Patient</a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6"><strong>Patient:</strong> {{ report.patient.full_name }} ({{ report.patient.patient_code }})</div>
+            <div class="col-md-6"><strong>Reported:</strong> {{ report.reported_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            <div class="col-md-6"><strong>Test Name:</strong> {{ report.test_name }}</div>
+            <div class="col-md-6"><strong>Category:</strong> {{ report.test_category }}</div>
+            <div class="col-md-6"><strong>Sample Type:</strong> {{ report.sample_type }}</div>
+            <div class="col-md-6"><strong>Result:</strong> {{ report.result_value }}</div>
+            <div class="col-md-6"><strong>Reference Range:</strong> {{ report.reference_range or "-" }}</div>
+            <div class="col-md-6"><strong>Interpretation:</strong> {{ report.interpretation }}</div>
+            <div class="col-md-6"><strong>Verified By:</strong> {{ report.verified_by or "-" }}</div>
+            <div class="col-md-6"><strong>Created By:</strong> {{ report.created_by.username }}</div>
+        </div>
+        <hr>
+        <h6>Clinical Notes</h6>
+        <p class="mb-0">{{ report.notes or "No additional notes." }}</p>
+    </div>
+</div>
+{% endblock %}

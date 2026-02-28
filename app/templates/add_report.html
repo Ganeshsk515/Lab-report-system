@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}New Report{% endblock %}
+{% block content %}
+<h2 class="mb-1">New Report for {{ patient.full_name }}</h2>
+<p class="text-muted mb-4">Patient ID: {{ patient.patient_code }}</p>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    {{ form.test_name.label(class="form-label") }}
+                    {{ form.test_name(class="form-control") }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ form.test_category.label(class="form-label") }}
+                    {{ form.test_category(class="form-select") }}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    {{ form.sample_type.label(class="form-label") }}
+                    {{ form.sample_type(class="form-control") }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.result_value.label(class="form-label") }}
+                    {{ form.result_value(class="form-control") }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.reference_range.label(class="form-label") }}
+                    {{ form.reference_range(class="form-control") }}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    {{ form.interpretation.label(class="form-label") }}
+                    {{ form.interpretation(class="form-select") }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ form.verified_by.label(class="form-label") }}
+                    {{ form.verified_by(class="form-control") }}
+                </div>
+            </div>
+            <div class="mb-3">
+                {{ form.notes.label(class="form-label") }}
+                {{ form.notes(class="form-control", rows="4") }}
+            </div>
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('main.view_patient', patient_id=patient.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

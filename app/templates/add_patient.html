@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}New Patient{% endblock %}
+{% block content %}
+<h2 class="mb-4">Create Patient Profile</h2>
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+                {{ form.patient_code.label(class="form-label") }}
+                {{ form.patient_code(class="form-control", placeholder="PT-10032") }}
+            </div>
+            <div class="mb-3">
+                {{ form.full_name.label(class="form-label") }}
+                {{ form.full_name(class="form-control") }}
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    {{ form.age.label(class="form-label") }}
+                    {{ form.age(class="form-control") }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.gender.label(class="form-label") }}
+                    {{ form.gender(class="form-select") }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.phone.label(class="form-label") }}
+                    {{ form.phone(class="form-control") }}
+                </div>
+            </div>
+            <div class="mb-3">
+                {{ form.email.label(class="form-label") }}
+                {{ form.email(class="form-control", placeholder="optional@email.com") }}
+            </div>
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('main.list_patients') }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

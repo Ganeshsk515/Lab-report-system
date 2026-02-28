@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Operational Dashboard</h2>
+        <p class="text-muted mb-0">Welcome, {{ current_user.username }} ({{ current_user.role }})</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('main.add_patient') }}">Register Patient</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <h6 class="text-muted">Total Patients</h6>
+                <div class="display-6">{{ stats.patients }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <h6 class="text-muted">Reports Issued</h6>
+                <div class="display-6">{{ stats.reports }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <h6 class="text-muted">Critical Alerts</h6>
+                <div class="display-6 text-danger">{{ stats.critical_reports }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Recent Reports</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_reports %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Patient</th>
+                        <th>Test</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Reported At</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in recent_reports %}
+                    <tr>
+                        <td>{{ report.patient.full_name }}</td>
+                        <td>{{ report.test_name }}</td>
+                        <td>{{ report.test_category }}</td>
+                        <td>
+                            <span class="badge {% if report.interpretation == 'Critical' %}bg-danger{% elif report.interpretation == 'Abnormal' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                {{ report.interpretation }}
+                            </span>
+                        </td>
+                        <td>{{ report.reported_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td><a href="{{ url_for('main.view_report', report_id=report.id) }}" class="btn btn-outline-secondary btn-sm">Open</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No reports available yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
