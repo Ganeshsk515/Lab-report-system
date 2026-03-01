@@ -6,7 +6,7 @@
         <div class="card shadow border-0">
             <div class="card-body p-4">
                 <h3 class="mb-3">Diagnostics Portal Login</h3>
-                <p class="text-muted">Secure access for authorized lab staff.</p>
+                <p class="text-muted">Secure access for staff and patient portal users.</p>
                 <form method="POST">
                     {{ form.hidden_tag() }}
                     <div class="mb-3">
@@ -21,6 +21,11 @@
                         {{ form.submit(class="btn btn-primary") }}
                     </div>
                 </form>
+                <hr>
+                <p class="mb-0 small">
+                    Patient and first-time user?
+                    <a href="{{ url_for('main.register') }}">Register</a>
+                </p>
             </div>
         </div>
     </div>

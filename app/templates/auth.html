@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Authentication{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-xl-9">
+        <div class="card shadow border-0">
+            <div class="card-body p-4">
+                <h3 class="mb-3">Diagnostics Portal Access</h3>
+                <ul class="nav nav-tabs mb-4" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {% if active_section == 'admin' %}active{% endif %}" href="{{ url_for('main.auth', section='admin') }}">Admin Login</a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {% if active_section == 'user' %}active{% endif %}" href="{{ url_for('main.auth', section='user') }}">User Login</a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {% if active_section == 'register' %}active{% endif %}" href="{{ url_for('main.auth', section='register') }}">User Registration</a>
+                    </li>
+                </ul>
+
+                {% if active_section == "admin" %}
+                <p class="text-muted">Use this section for administrator accounts only.</p>
+                <form method="POST">
+                    {{ admin_login_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ admin_login_form.email.label(class="form-label") }}
+                        {{ admin_login_form.email(class="form-control" ~ (" is-invalid" if admin_login_form.email.errors else ""), placeholder="admin@hospital.com") }}
+                        {% for error in admin_login_form.email.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ admin_login_form.password.label(class="form-label") }}
+                        {{ admin_login_form.password(class="form-control" ~ (" is-invalid" if admin_login_form.password.errors else "")) }}
+                        {% for error in admin_login_form.password.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-grid">
+                        {{ admin_login_form.submit(class="btn btn-dark", value="Admin Login") }}
+                    </div>
+                </form>
+                {% elif active_section == "register" %}
+                <p class="text-muted">Patients can self-register using their Patient ID and registered email.</p>
+                <form method="POST">
+                    {{ patient_form.hidden_tag() }}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.patient_code.label(class="form-label") }}
+                            {{ patient_form.patient_code(class="form-control" ~ (" is-invalid" if patient_form.patient_code.errors else ""), placeholder="PT-10032") }}
+                            {% for error in patient_form.patient_code.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.email.label(class="form-label") }}
+                            {{ patient_form.email(class="form-control" ~ (" is-invalid" if patient_form.email.errors else ""), placeholder="you@email.com") }}
+                            {% for error in patient_form.email.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.password.label(class="form-label") }}
+                            {{ patient_form.password(class="form-control" ~ (" is-invalid" if patient_form.password.errors else "")) }}
+                            {% for error in patient_form.password.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.confirm_password.label(class="form-label") }}
+                            {{ patient_form.confirm_password(class="form-control" ~ (" is-invalid" if patient_form.confirm_password.errors else "")) }}
+                            {% for error in patient_form.confirm_password.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        {{ patient_form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+                {% else %}
+                <p class="text-muted">Login for staff and patient portal users.</p>
+                <form method="POST">
+                    {{ user_login_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ user_login_form.email.label(class="form-label") }}
+                        {{ user_login_form.email(class="form-control" ~ (" is-invalid" if user_login_form.email.errors else ""), placeholder="name@hospital.com") }}
+                        {% for error in user_login_form.email.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ user_login_form.password.label(class="form-label") }}
+                        {{ user_login_form.password(class="form-control" ~ (" is-invalid" if user_login_form.password.errors else "")) }}
+                        {% for error in user_login_form.password.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="#" class="small text-decoration-none">Forgot password?</a>
+                        {{ user_login_form.submit(class="btn btn-primary", value="User Login") }}
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -26,6 +26,17 @@ class RegisterForm(FlaskForm):
     submit = SubmitField("Create Account")
 
 
+class PatientPortalRegisterForm(FlaskForm):
+    patient_code = StringField("Patient ID", validators=[DataRequired(), Length(min=3, max=30)])
+    email = StringField("Registered Email", validators=[DataRequired(), Email(), Length(max=150)])
+    password = PasswordField("Password", validators=[DataRequired(), Length(min=8, max=72)])
+    confirm_password = PasswordField(
+        "Confirm Password",
+        validators=[DataRequired(), EqualTo("password", message="Passwords must match.")],
+    )
+    submit = SubmitField("Activate Patient Account")
+
+
 class PatientForm(FlaskForm):
     patient_code = StringField("Patient ID", validators=[DataRequired(), Length(min=3, max=30)])
     full_name = StringField("Patient Name", validators=[DataRequired(), Length(min=2, max=150)])

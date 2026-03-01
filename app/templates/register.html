@@ -1,41 +1,79 @@
 {% extends "base.html" %}
-{% block title %}Create User{% endblock %}
+{% block title %}Register{% endblock %}
 {% block content %}
-<h2 class="mb-4">Create User Account</h2>
-<div class="card shadow-sm border-0">
-    <div class="card-body">
-        <form method="POST">
-            {{ form.hidden_tag() }}
-            <div class="mb-3">
-                {{ form.username.label(class="form-label") }}
-                {{ form.username(class="form-control") }}
+<div class="row justify-content-center mt-3">
+    <div class="col-lg-8">
+        <div class="card shadow border-0 mb-4">
+            <div class="card-body p-4">
+                <h3 class="mb-3">Patient Portal Registration</h3>
+                <p class="text-muted">Activate your account with your Patient ID and registered email.</p>
+                <form method="POST">
+                    {{ patient_form.hidden_tag() }}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.patient_code.label(class="form-label") }}
+                            {{ patient_form.patient_code(class="form-control", placeholder="PT-10032") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.email.label(class="form-label") }}
+                            {{ patient_form.email(class="form-control", placeholder="you@email.com") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.password.label(class="form-label") }}
+                            {{ patient_form.password(class="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ patient_form.confirm_password.label(class="form-label") }}
+                            {{ patient_form.confirm_password(class="form-control") }}
+                        </div>
+                    </div>
+                    {{ patient_form.submit(class="btn btn-primary") }}
+                </form>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    {{ form.email.label(class="form-label") }}
-                    {{ form.email(class="form-control") }}
-                </div>
-                <div class="col-md-6 mb-3">
-                    {{ form.phone.label(class="form-label") }}
-                    {{ form.phone(class="form-control") }}
-                </div>
+        </div>
+
+        {% if is_admin_context %}
+        <div class="card shadow border-0">
+            <div class="card-body p-4">
+                <h3 class="mb-3">Admin User Registration</h3>
+                <p class="text-muted">Create staff/admin accounts from the same registration page.</p>
+                <form method="POST">
+                    {{ staff_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ staff_form.username.label(class="form-label") }}
+                        {{ staff_form.username(class="form-control") }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ staff_form.email.label(class="form-label") }}
+                            {{ staff_form.email(class="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ staff_form.phone.label(class="form-label") }}
+                            {{ staff_form.phone(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ staff_form.role.label(class="form-label") }}
+                            {{ staff_form.role(class="form-select") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ staff_form.password.label(class="form-label") }}
+                            {{ staff_form.password(class="form-control") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ staff_form.confirm_password.label(class="form-label") }}
+                            {{ staff_form.confirm_password(class="form-control") }}
+                        </div>
+                    </div>
+                    {{ staff_form.submit(class="btn btn-outline-primary") }}
+                </form>
             </div>
-            <div class="row">
-                <div class="col-md-4 mb-3">
-                    {{ form.role.label(class="form-label") }}
-                    {{ form.role(class="form-select") }}
-                </div>
-                <div class="col-md-4 mb-3">
-                    {{ form.password.label(class="form-label") }}
-                    {{ form.password(class="form-control") }}
-                </div>
-                <div class="col-md-4 mb-3">
-                    {{ form.confirm_password.label(class="form-label") }}
-                    {{ form.confirm_password(class="form-control") }}
-                </div>
-            </div>
-            {{ form.submit(class="btn btn-primary") }}
-        </form>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

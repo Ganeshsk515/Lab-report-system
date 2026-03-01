@@ -13,6 +13,7 @@ class User(db.Model, UserMixin):
     phone = db.Column(db.String(20), unique=True, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="staff")
+    patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     reports = db.relationship(
@@ -20,6 +21,7 @@ class User(db.Model, UserMixin):
         back_populates="created_by",
         lazy=True,
     )
+    patient_profile = db.relationship("Patient", back_populates="portal_user", uselist=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -47,6 +49,7 @@ class Patient(db.Model):
         cascade="all, delete-orphan",
         lazy=True,
     )
+    portal_user = db.relationship("User", back_populates="patient_profile", uselist=False)
 
 
 class DiagnosticReport(db.Model):

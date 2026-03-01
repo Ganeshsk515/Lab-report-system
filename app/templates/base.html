@@ -9,7 +9,7 @@
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('main.login') }}">
+        <a class="navbar-brand fw-bold" href="{% if current_user.is_authenticated and current_user.role == 'patient' %}{{ url_for('main.my_reports') }}{% elif current_user.is_authenticated %}{{ url_for('main.dashboard') }}{% else %}{{ url_for('main.auth', section='user') }}{% endif %}">
             Diagnostics Portal
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
@@ -18,16 +18,24 @@
         <div class="collapse navbar-collapse" id="navContent">
             <ul class="navbar-nav ms-auto align-items-lg-center">
                 {% if current_user.is_authenticated %}
+                {% if current_user.role == "patient" %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.my_reports') }}">My Reports</a></li>
+                {% else %}
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('main.list_patients') }}">Patients</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('main.add_patient') }}">New Patient</a></li>
+                {% endif %}
                 {% if current_user.role == "admin" %}
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('main.users') }}">Users</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.register') }}">Create User</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.create_user') }}">Create User</a></li>
                 {% endif %}
                 <li class="nav-item ms-lg-3">
                     <a class="btn btn-outline-light btn-sm" href="{{ url_for('main.logout') }}">Logout</a>
                 </li>
+                {% else %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.auth', section='admin') }}">Admin Login</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.auth', section='user') }}">User Login</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.auth', section='register') }}">Register</a></li>
                 {% endif %}
             </ul>
         </div>
