@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 import os
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import inspect
 from sqlalchemy.exc import OperationalError
 
@@ -47,6 +48,7 @@ def create_app(config_class=None):
     config_class = config_class or Config
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
+    _log_database_target(app)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -61,6 +63,27 @@ def create_app(config_class=None):
         _bootstrap_admin()
 
     return app
+
+
+def _log_database_target(app):
+    raw_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if not raw_url:
+        app.logger.warning("Database URI is empty.")
+        return
+
+    try:
+        split_url = urlsplit(raw_url)
+        if split_url.password:
+            netloc = split_url.netloc.replace(f":{split_url.password}@", ":***@")
+            sanitized = urlunsplit(
+                (split_url.scheme, netloc, split_url.path, split_url.query, split_url.fragment)
+            )
+        else:
+            sanitized = raw_url
+    except Exception:
+        sanitized = "<unparseable>"
+
+    app.logger.info("Active DB: %s", sanitized)
 
 
 def _bootstrap_admin():
