@@ -22,6 +22,12 @@ class User(db.Model, UserMixin):
         lazy=True,
     )
     patient_profile = db.relationship("Patient", back_populates="portal_user", uselist=False)
+    security_profile = db.relationship(
+        "UserSecurityProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -68,3 +74,22 @@ class DiagnosticReport(db.Model):
 
     patient = db.relationship("Patient", back_populates="reports")
     created_by = db.relationship("User", back_populates="reports")
+
+
+class UserSecurityProfile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False, index=True)
+    question = db.Column(db.String(255), nullable=False)
+    answer_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    user = db.relationship("User", back_populates="security_profile")
+
+    def set_answer(self, answer):
+        self.answer_hash = generate_password_hash(answer.strip().lower())
+
+    def check_answer(self, answer):
+        return check_password_hash(self.answer_hash, answer.strip().lower())

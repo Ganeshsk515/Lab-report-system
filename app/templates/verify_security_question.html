@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Security Verification{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow border-0">
+            <div class="card-body p-4">
+                <h4 class="mb-3">Second Step Verification</h4>
+                <p class="text-muted mb-1"><strong>Question:</strong></p>
+                <p>{{ question }}</p>
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.answer.label(class="form-label") }}
+                        {{ form.answer(class="form-control" ~ (" is-invalid" if form.answer.errors else ""), placeholder="Enter your answer") }}
+                        {% for error in form.answer.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

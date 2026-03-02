@@ -1,12 +1,22 @@
 from functools import wraps
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import or_
 
 from app import db
-from app.forms import LoginForm, PatientForm, PatientPortalRegisterForm, RegisterForm, ReportForm
-from app.models import DiagnosticReport, Patient, User
+from app.forms import (
+    ForgotPasswordForm,
+    LoginForm,
+    PatientForm,
+    PatientPortalRegisterForm,
+    RegisterForm,
+    ReportForm,
+    ResetPasswordForm,
+    SecurityQuestionSetupForm,
+    SecurityQuestionVerifyForm,
+)
+from app.models import DiagnosticReport, Patient, User, UserSecurityProfile
 
 main = Blueprint("main", __name__)
 
@@ -21,6 +31,14 @@ def _flash_form_errors(form):
         label = field.label.text if field is not None else field_name.replace("_", " ").title()
         for error in errors:
             flash(f"{label}: {error}", "danger")
+
+
+def _begin_security_verification(user):
+    session["pending_user_id"] = user.id
+
+
+def _clear_pending_security_session():
+    session.pop("pending_user_id", None)
 
 
 def admin_required(view_func):
@@ -85,9 +103,8 @@ def auth():
                         active_section=active_section,
                     )
 
-                login_user(user)
-                flash("Admin logged in successfully.", "success")
-                return redirect(url_for("main.dashboard"))
+                _begin_security_verification(user)
+                return redirect(url_for("main.verify_security_question"))
             if User.query.count() == 0:
                 flash("No accounts exist yet. Configure default admin credentials and restart.", "warning")
             flash("Invalid admin email or password.", "danger")
@@ -104,11 +121,8 @@ def auth():
                     flash("Admin accounts must use the Admin Login section.", "warning")
                     return redirect(url_for("main.auth", section="admin"))
 
-                login_user(user)
-                flash("You are now logged in.", "success")
-                if user.role == "patient":
-                    return redirect(url_for("main.my_reports"))
-                return redirect(url_for("main.dashboard"))
+                _begin_security_verification(user)
+                return redirect(url_for("main.verify_security_question"))
             if User.query.count() == 0:
                 flash("No accounts exist yet. Configure default admin credentials and restart.", "warning")
             flash("Invalid user email or password.", "danger")
@@ -120,7 +134,7 @@ def auth():
     if patient_form.submit.data:
         if patient_form.validate_on_submit():
             patient_code = patient_form.patient_code.data.strip().upper()
-            patient_email = patient_form.email.data.lower().strip()
+            patient_email = patient_form.email.data
             patient = Patient.query.filter_by(patient_code=patient_code).first()
 
             if not patient:
@@ -134,7 +148,7 @@ def auth():
                     active_section=active_section,
                 )
 
-            if not patient.email or patient.email.lower().strip() != patient_email:
+            if not patient.email or patient.email != patient_email:
                 flash("Email does not match the patient profile.", "danger")
                 active_section = "register"
                 return render_template(
@@ -201,6 +215,127 @@ def patient_register():
     return redirect(url_for("main.auth", section="register"))
 
 
+@main.route("/security/verify", methods=["GET", "POST"])
+def verify_security_question():
+    user_id = session.get("pending_user_id")
+    if not user_id:
+        flash("No login verification is pending.", "warning")
+        return redirect(url_for("main.auth", section="user"))
+
+    user = User.query.get_or_404(user_id)
+    profile = user.security_profile
+    if not profile:
+        flash("Set your security question to complete login.", "info")
+        return redirect(url_for("main.setup_security_question"))
+
+    form = SecurityQuestionVerifyForm()
+    if form.validate_on_submit():
+        if not profile.check_answer(form.answer.data):
+            flash("Incorrect security answer.", "danger")
+            return render_template(
+                "verify_security_question.html",
+                form=form,
+                question=profile.question,
+            )
+
+        login_user(user)
+        _clear_pending_security_session()
+        flash("Login successful.", "success")
+        if user.role == "patient":
+            return redirect(url_for("main.my_reports"))
+        return redirect(url_for("main.dashboard"))
+
+    return render_template(
+        "verify_security_question.html",
+        form=form,
+        question=profile.question,
+    )
+
+
+@main.route("/security/setup", methods=["GET", "POST"])
+def setup_security_question():
+    user_id = session.get("pending_user_id")
+    if not user_id:
+        flash("No login setup is pending.", "warning")
+        return redirect(url_for("main.auth", section="user"))
+
+    user = User.query.get_or_404(user_id)
+    form = SecurityQuestionSetupForm()
+    if form.validate_on_submit():
+        profile = user.security_profile or UserSecurityProfile(user_id=user.id)
+        profile.question = form.question.data.strip()
+        profile.set_answer(form.answer.data)
+        db.session.add(profile)
+        db.session.commit()
+
+        login_user(user)
+        _clear_pending_security_session()
+        flash("Security question saved. Login successful.", "success")
+        if user.role == "patient":
+            return redirect(url_for("main.my_reports"))
+        return redirect(url_for("main.dashboard"))
+
+    return render_template("setup_security_question.html", form=form)
+
+
+@main.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        if current_user.role == "patient":
+            return redirect(url_for("main.my_reports"))
+        return redirect(url_for("main.dashboard"))
+
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            session["password_reset_user_id"] = user.id
+            return redirect(url_for("main.reset_password"))
+
+        flash(
+            "If this email exists, continue with security verification.",
+            "info",
+        )
+        return redirect(url_for("main.forgot_password"))
+
+    return render_template("forgot_password.html", form=form)
+
+
+@main.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    if current_user.is_authenticated:
+        if current_user.role == "patient":
+            return redirect(url_for("main.my_reports"))
+        return redirect(url_for("main.dashboard"))
+
+    user_id = session.get("password_reset_user_id")
+    if not user_id:
+        flash("No password reset is pending.", "warning")
+        return redirect(url_for("main.forgot_password"))
+
+    user = User.query.get_or_404(user_id)
+    profile = user.security_profile
+    if not profile:
+        session.pop("password_reset_user_id", None)
+        flash("No security question is configured for this account.", "danger")
+        return redirect(url_for("main.forgot_password"))
+
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        if not profile.check_answer(form.answer.data):
+            flash("Incorrect security answer.", "danger")
+            return render_template("reset_password.html", form=form, question=profile.question)
+        user.set_password(form.password.data)
+        db.session.commit()
+
+        session.pop("password_reset_user_id", None)
+
+        flash("Password reset successful. Please login.", "success")
+        return redirect(url_for("main.auth", section="user"))
+
+    return render_template("reset_password.html", form=form, question=profile.question)
+
+
 @main.route("/logout")
 @login_required
 def logout():
@@ -238,15 +373,15 @@ def users():
 def create_user():
     form = RegisterForm()
     if form.validate_on_submit():
-        existing = User.query.filter_by(email=form.email.data.lower().strip()).first()
+        existing = User.query.filter_by(email=form.email.data).first()
         if existing:
             flash("An account with this email already exists.", "danger")
             return render_template("create_user.html", form=form)
 
         user = User(
             username=form.username.data.strip(),
-            email=form.email.data.lower().strip(),
-            phone=form.phone.data.strip() if form.phone.data else None,
+            email=form.email.data,
+            phone=form.phone.data,
             role=form.role.data,
         )
         user.set_password(form.password.data)
@@ -293,8 +428,8 @@ def add_patient():
             full_name=form.full_name.data.strip(),
             age=form.age.data,
             gender=form.gender.data,
-            phone=form.phone.data.strip() if form.phone.data else None,
-            email=form.email.data.lower().strip() if form.email.data else None,
+            phone=form.phone.data,
+            email=form.email.data,
         )
         db.session.add(patient)
         db.session.commit()
@@ -338,8 +473,8 @@ def edit_patient(patient_id):
         patient.full_name = form.full_name.data.strip()
         patient.age = form.age.data
         patient.gender = form.gender.data
-        patient.phone = form.phone.data.strip() if form.phone.data else None
-        patient.email = form.email.data.lower().strip() if form.email.data else None
+        patient.phone = form.phone.data
+        patient.email = form.email.data
         db.session.commit()
         flash("Patient profile updated.", "success")
         return redirect(url_for("main.view_patient", patient_id=patient.id))

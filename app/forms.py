@@ -2,6 +2,8 @@ from flask_wtf import FlaskForm
 from wtforms import IntegerField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, Optional
 
+from app.validators import normalize_and_validate_email, normalize_and_validate_phone
+
 
 class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=150)])
@@ -12,7 +14,7 @@ class LoginForm(FlaskForm):
 class RegisterForm(FlaskForm):
     username = StringField("Full Name", validators=[DataRequired(), Length(min=2, max=100)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=150)])
-    phone = StringField("Phone", validators=[Optional(), Length(max=20)])
+    phone = StringField("Phone", validators=[DataRequired(), Length(max=20)])
     role = SelectField(
         "Role",
         choices=[("staff", "Staff"), ("admin", "Admin")],
@@ -25,6 +27,12 @@ class RegisterForm(FlaskForm):
     )
     submit = SubmitField("Create Account")
 
+    def validate_email(self, field):
+        field.data = normalize_and_validate_email(field.data)
+
+    def validate_phone(self, field):
+        field.data = normalize_and_validate_phone(field.data)
+
 
 class PatientPortalRegisterForm(FlaskForm):
     patient_code = StringField("Patient ID", validators=[DataRequired(), Length(min=3, max=30)])
@@ -36,6 +44,9 @@ class PatientPortalRegisterForm(FlaskForm):
     )
     submit = SubmitField("Activate Patient Account")
 
+    def validate_email(self, field):
+        field.data = normalize_and_validate_email(field.data)
+
 
 class PatientForm(FlaskForm):
     patient_code = StringField("Patient ID", validators=[DataRequired(), Length(min=3, max=30)])
@@ -46,9 +57,15 @@ class PatientForm(FlaskForm):
         choices=[("Male", "Male"), ("Female", "Female"), ("Other", "Other")],
         validators=[DataRequired()],
     )
-    phone = StringField("Phone", validators=[Optional(), Length(max=20)])
-    email = StringField("Email", validators=[Optional(), Email(), Length(max=150)])
+    phone = StringField("Phone", validators=[DataRequired(), Length(max=20)])
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=150)])
     submit = SubmitField("Save Patient")
+
+    def validate_email(self, field):
+        field.data = normalize_and_validate_email(field.data)
+
+    def validate_phone(self, field):
+        field.data = normalize_and_validate_phone(field.data)
 
 
 class ReportForm(FlaskForm):
@@ -80,3 +97,32 @@ class ReportForm(FlaskForm):
     verified_by = StringField("Verified By", validators=[Optional(), Length(max=150)])
     notes = TextAreaField("Clinical Notes", validators=[Optional(), Length(max=1000)])
     submit = SubmitField("Publish Report")
+
+
+class SecurityQuestionVerifyForm(FlaskForm):
+    answer = StringField("Security Answer", validators=[DataRequired(), Length(min=2, max=255)])
+    submit = SubmitField("Verify")
+
+
+class SecurityQuestionSetupForm(FlaskForm):
+    question = StringField("Security Question", validators=[DataRequired(), Length(min=8, max=255)])
+    answer = StringField("Security Answer", validators=[DataRequired(), Length(min=2, max=255)])
+    submit = SubmitField("Save and Continue")
+
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=150)])
+    submit = SubmitField("Continue")
+
+    def validate_email(self, field):
+        field.data = normalize_and_validate_email(field.data)
+
+
+class ResetPasswordForm(FlaskForm):
+    answer = StringField("Security Answer", validators=[DataRequired(), Length(min=2, max=255)])
+    password = PasswordField("New Password", validators=[DataRequired(), Length(min=8, max=72)])
+    confirm_password = PasswordField(
+        "Confirm Password",
+        validators=[DataRequired(), EqualTo("password", message="Passwords must match.")],
+    )
+    submit = SubmitField("Reset Password")
