@@ -14,17 +14,12 @@ def _normalize_postgres_scheme(url):
 
 
 def _resolve_database_url():
-    # 1) Explicit DATABASE_URL (highest priority)
-    database_url = _normalize_postgres_scheme(os.getenv("DATABASE_URL"))
-    if database_url:
-        return database_url
-
-    # 2) Full Supabase URL
+    # 1) Full Supabase URL (highest priority)
     supabase_db_url = _normalize_postgres_scheme(os.getenv("SUPABASE_DB_URL"))
     if supabase_db_url:
         return supabase_db_url
 
-    # 3) Supabase components (safe for special chars in password)
+    # 2) Supabase components (safe for special chars in password)
     project_ref = os.getenv("SUPABASE_PROJECT_REF")
     db_password = os.getenv("SUPABASE_DB_PASSWORD")
     if project_ref and db_password:
@@ -33,6 +28,11 @@ def _resolve_database_url():
             f"postgresql+psycopg2://postgres:{encoded_password}"
             f"@db.{project_ref}.supabase.co:5432/postgres?sslmode=require"
         )
+
+    # 3) Explicit DATABASE_URL
+    database_url = _normalize_postgres_scheme(os.getenv("DATABASE_URL"))
+    if database_url:
+        return database_url
 
     # 4) Local SQLite fallback
     return f"sqlite:///{(INSTANCE_DIR / 'database.db').as_posix()}"
