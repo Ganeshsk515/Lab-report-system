@@ -68,7 +68,9 @@ def create_app(config_class=None):
                 exc,
             )
             raise RuntimeError(
-                "Database connection failed during startup. Verify SUPABASE_DB_URL format and remove conflicting DATABASE_URL."
+                "Database connection failed during startup. "
+                "Verify SUPABASE_DB_URL format and remove conflicting DATABASE_URL. "
+                f"Underlying error: {exc}"
             ) from exc
 
     return app
