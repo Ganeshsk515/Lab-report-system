@@ -6,6 +6,7 @@ A Flask-based diagnostics/lab report management system with role-based access fo
 
 - Admin and staff login workflow
 - Security-question second-step verification during login
+- Email verification link for new accounts
 - Patient portal activation (using Patient ID + registered email)
 - Patient record management (create, edit, search, delete)
 - Diagnostic report publishing and viewing
@@ -79,6 +80,9 @@ Copy `.env.example` to `.env` and configure:
 - `SUPABASE_PROJECT_REF` (optional): Supabase project reference, used with `SUPABASE_DB_PASSWORD`
 - `SUPABASE_DB_PASSWORD` (optional): raw Supabase DB password (special chars supported)
 - `ALLOW_SQLITE_RESET` (optional, default `true`): if `true`, app may reset outdated SQLite schema during migration checks
+- `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USE_SSL`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`: SMTP settings for verification and reset emails
+- `EMAIL_VERIFY_TOKEN_MAX_AGE` (optional, default `86400` seconds): email verification link validity
+- `PASSWORD_RESET_TOKEN_MAX_AGE` (optional, default `3600` seconds): reset-password link validity
 
 Example PostgreSQL URL:
 
@@ -113,7 +117,7 @@ Resolution priority:
 
 - After password validation, users complete a second step by answering their security question.
 - If a user has no configured question yet, they are prompted to set one at login.
-- Forgot-password flow also uses the saved security question answer.
+- Forgot-password flow sends a secure reset link to the user's email.
 
 ## Docker Setup
 
@@ -151,6 +155,9 @@ Services:
 ## Main Routes
 
 - `/auth`: unified admin/user login + patient activation
+- `/email/verify/<token>`: verifies a newly registered account email
+- `/forgot-password`: requests a reset-password link
+- `/reset-password/<token>`: resets password through email token
 - `/dashboard`: staff/admin summary dashboard
 - `/users`: admin user list
 - `/users/new`: admin create user

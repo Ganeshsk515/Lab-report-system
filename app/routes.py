@@ -1,7 +1,9 @@
 from functools import wraps
+from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import or_
 
 from app import db
@@ -16,6 +18,7 @@ from app.forms import (
     SecurityQuestionSetupForm,
     SecurityQuestionVerifyForm,
 )
+from app.mailer import send_email
 from app.models import DiagnosticReport, Patient, User, UserSecurityProfile
 
 main = Blueprint("main", __name__)
@@ -39,6 +42,53 @@ def _begin_security_verification(user):
 
 def _clear_pending_security_session():
     session.pop("pending_user_id", None)
+
+
+def _serializer():
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+
+
+def _verification_token(user_id):
+    return _serializer().dumps({"user_id": user_id, "purpose": "verify-email"}, salt="verify-email")
+
+
+def _password_reset_token(user_id):
+    return _serializer().dumps({"user_id": user_id, "purpose": "password-reset"}, salt="password-reset")
+
+
+def _decode_token(token, salt, expected_purpose, max_age):
+    data = _serializer().loads(token, salt=salt, max_age=max_age)
+    if not isinstance(data, dict) or data.get("purpose") != expected_purpose:
+        raise BadSignature("Invalid token purpose")
+    return data
+
+
+def _send_verification_email(user):
+    verify_url = url_for("main.verify_email", token=_verification_token(user.id), _external=True)
+    body = (
+        f"Hello {user.username},\n\n"
+        "Please verify your email address by clicking the link below:\n"
+        f"{verify_url}\n\n"
+        "If you did not request this, ignore this email."
+    )
+    sent = send_email("Verify your email - Diagnostics Portal", [user.email], body)
+    if not sent:
+        current_app.logger.warning("Verification link for %s: %s", user.email, verify_url)
+    return sent
+
+
+def _send_password_reset_email(user):
+    reset_url = url_for("main.reset_password", token=_password_reset_token(user.id), _external=True)
+    body = (
+        f"Hello {user.username},\n\n"
+        "Use the link below to reset your password:\n"
+        f"{reset_url}\n\n"
+        "If you did not request this, ignore this email."
+    )
+    sent = send_email("Password reset - Diagnostics Portal", [user.email], body)
+    if not sent:
+        current_app.logger.warning("Reset link for %s: %s", user.email, reset_url)
+    return sent
 
 
 def admin_required(view_func):
@@ -103,6 +153,18 @@ def auth():
                         active_section=active_section,
                     )
 
+                if not user.email_verified:
+                    _send_verification_email(user)
+                    flash("Email not verified. A verification link has been sent.", "warning")
+                    active_section = "admin"
+                    return render_template(
+                        "auth.html",
+                        admin_login_form=admin_login_form,
+                        user_login_form=user_login_form,
+                        patient_form=patient_form,
+                        active_section=active_section,
+                    )
+
                 _begin_security_verification(user)
                 return redirect(url_for("main.verify_security_question"))
             if User.query.count() == 0:
@@ -120,6 +182,18 @@ def auth():
                 if user.role == "admin":
                     flash("Admin accounts must use the Admin Login section.", "warning")
                     return redirect(url_for("main.auth", section="admin"))
+
+                if not user.email_verified:
+                    _send_verification_email(user)
+                    flash("Email not verified. A verification link has been sent.", "warning")
+                    active_section = "user"
+                    return render_template(
+                        "auth.html",
+                        admin_login_form=admin_login_form,
+                        user_login_form=user_login_form,
+                        patient_form=patient_form,
+                        active_section=active_section,
+                    )
 
                 _begin_security_verification(user)
                 return redirect(url_for("main.verify_security_question"))
@@ -181,11 +255,13 @@ def auth():
                 phone=patient.phone,
                 role="patient",
                 patient_id=patient.id,
+                email_verified=False,
             )
             user.set_password(patient_form.password.data)
             db.session.add(user)
             db.session.commit()
-            flash("Patient account activated. Please log in.", "success")
+            _send_verification_email(user)
+            flash("Patient account created. Verify your email before login.", "success")
             return redirect(url_for("main.auth", section="user"))
         else:
             _flash_form_errors(patient_form)
@@ -213,6 +289,38 @@ def register():
 @main.route("/patient/register", methods=["GET", "POST"])
 def patient_register():
     return redirect(url_for("main.auth", section="register"))
+
+
+@main.route("/email/verify/<token>")
+def verify_email(token):
+    try:
+        payload = _decode_token(
+            token,
+            salt="verify-email",
+            expected_purpose="verify-email",
+            max_age=current_app.config["EMAIL_VERIFY_TOKEN_MAX_AGE"],
+        )
+    except SignatureExpired:
+        flash("Verification link expired. Please log in to request a new link.", "danger")
+        return redirect(url_for("main.auth", section="user"))
+    except BadSignature:
+        flash("Invalid verification link.", "danger")
+        return redirect(url_for("main.auth", section="user"))
+
+    user = User.query.get(payload.get("user_id"))
+    if not user:
+        flash("Account not found.", "danger")
+        return redirect(url_for("main.auth", section="user"))
+
+    if not user.email_verified:
+        user.email_verified = True
+        user.email_verified_at = datetime.utcnow()
+        db.session.commit()
+        flash("Email verified successfully. You can now log in.", "success")
+    else:
+        flash("Email already verified. Please log in.", "info")
+
+    return redirect(url_for("main.auth", section="user"))
 
 
 @main.route("/security/verify", methods=["GET", "POST"])
@@ -289,11 +397,10 @@ def forgot_password():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
-            session["password_reset_user_id"] = user.id
-            return redirect(url_for("main.reset_password"))
+            _send_password_reset_email(user)
 
         flash(
-            "If this email exists, continue with security verification.",
+            "If this email exists, a reset link has been sent.",
             "info",
         )
         return redirect(url_for("main.forgot_password"))
@@ -301,39 +408,41 @@ def forgot_password():
     return render_template("forgot_password.html", form=form)
 
 
-@main.route("/reset-password", methods=["GET", "POST"])
-def reset_password():
+@main.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
     if current_user.is_authenticated:
         if current_user.role == "patient":
             return redirect(url_for("main.my_reports"))
         return redirect(url_for("main.dashboard"))
 
-    user_id = session.get("password_reset_user_id")
-    if not user_id:
-        flash("No password reset is pending.", "warning")
+    try:
+        payload = _decode_token(
+            token,
+            salt="password-reset",
+            expected_purpose="password-reset",
+            max_age=current_app.config["PASSWORD_RESET_TOKEN_MAX_AGE"],
+        )
+    except SignatureExpired:
+        flash("Password reset link expired. Request a new one.", "danger")
+        return redirect(url_for("main.forgot_password"))
+    except BadSignature:
+        flash("Invalid password reset link.", "danger")
         return redirect(url_for("main.forgot_password"))
 
-    user = User.query.get_or_404(user_id)
-    profile = user.security_profile
-    if not profile:
-        session.pop("password_reset_user_id", None)
-        flash("No security question is configured for this account.", "danger")
+    user = User.query.get(payload.get("user_id"))
+    if not user:
+        flash("Account not found for this reset link.", "danger")
         return redirect(url_for("main.forgot_password"))
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        if not profile.check_answer(form.answer.data):
-            flash("Incorrect security answer.", "danger")
-            return render_template("reset_password.html", form=form, question=profile.question)
         user.set_password(form.password.data)
         db.session.commit()
-
-        session.pop("password_reset_user_id", None)
 
         flash("Password reset successful. Please login.", "success")
         return redirect(url_for("main.auth", section="user"))
 
-    return render_template("reset_password.html", form=form, question=profile.question)
+    return render_template("reset_password.html", form=form)
 
 
 @main.route("/logout")
@@ -383,11 +492,13 @@ def create_user():
             email=form.email.data,
             phone=form.phone.data,
             role=form.role.data,
+            email_verified=False,
         )
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash("User created successfully.", "success")
+        _send_verification_email(user)
+        flash("User created. Verification link sent to email.", "success")
         return redirect(url_for("main.users"))
 
     return render_template("create_user.html", form=form)

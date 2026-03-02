@@ -119,7 +119,6 @@ class ForgotPasswordForm(FlaskForm):
 
 
 class ResetPasswordForm(FlaskForm):
-    answer = StringField("Security Answer", validators=[DataRequired(), Length(min=2, max=255)])
     password = PasswordField("New Password", validators=[DataRequired(), Length(min=8, max=72)])
     confirm_password = PasswordField(
         "Confirm Password",

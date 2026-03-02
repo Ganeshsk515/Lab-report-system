@@ -14,6 +14,8 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="staff")
     patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), unique=True, nullable=True)
+    email_verified = db.Column(db.Boolean, nullable=False, default=False)
+    email_verified_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     reports = db.relationship(

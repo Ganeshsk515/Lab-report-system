@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 import os
 from pathlib import Path
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError
 
 db = SQLAlchemy()
@@ -60,6 +60,7 @@ def create_app(config_class=None):
             _log_database_target(app)
             _fail_if_render_uses_sqlite()
             db.create_all()
+            _ensure_user_email_columns()
             _ensure_sqlite_schema()
             _bootstrap_admin()
         except OperationalError as exc:
@@ -118,6 +119,7 @@ def _bootstrap_admin():
         username=admin_name,
         email=admin_email.lower().strip(),
         role="admin",
+        email_verified=True,
     )
     admin.set_password(admin_password)
     db.session.add(admin)
@@ -152,3 +154,27 @@ def _ensure_sqlite_schema():
     if needs_reset and allow_reset:
         db.drop_all()
         db.create_all()
+
+
+def _ensure_user_email_columns():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+    if "user" not in table_names:
+        return
+
+    user_cols = {col["name"] for col in inspector.get_columns("user")}
+    added = False
+
+    if "email_verified" not in user_cols:
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN email_verified BOOLEAN'))
+        added = True
+
+    if "email_verified_at" not in user_cols:
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN email_verified_at TIMESTAMP'))
+        added = True
+
+    if added:
+        db.session.execute(
+            text('UPDATE "user" SET email_verified = TRUE WHERE email_verified IS NULL')
+        )
+        db.session.commit()

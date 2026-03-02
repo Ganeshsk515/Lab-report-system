@@ -51,3 +51,14 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-production")
     SQLALCHEMY_DATABASE_URI = _resolve_database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MAIL_SERVER = _clean_env_value(os.getenv("MAIL_SERVER"))
+    MAIL_PORT = int(_clean_env_value(os.getenv("MAIL_PORT")) or 587)
+    MAIL_USE_TLS = _clean_env_value(os.getenv("MAIL_USE_TLS", "true")).lower() == "true"
+    MAIL_USE_SSL = _clean_env_value(os.getenv("MAIL_USE_SSL", "false")).lower() == "true"
+    MAIL_USERNAME = _clean_env_value(os.getenv("MAIL_USERNAME"))
+    MAIL_PASSWORD = _clean_env_value(os.getenv("MAIL_PASSWORD"))
+    MAIL_FROM = _clean_env_value(os.getenv("MAIL_FROM"))
+    EMAIL_VERIFY_TOKEN_MAX_AGE = int(_clean_env_value(os.getenv("EMAIL_VERIFY_TOKEN_MAX_AGE")) or 86400)
+    PASSWORD_RESET_TOKEN_MAX_AGE = int(
+        _clean_env_value(os.getenv("PASSWORD_RESET_TOKEN_MAX_AGE")) or 3600
+    )
