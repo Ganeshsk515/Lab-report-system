@@ -56,17 +56,29 @@ def create_app(config_class=None):
     app.register_blueprint(main)
 
     with app.app_context():
-        _log_database_target(app)
-        _fail_if_render_uses_sqlite()
-        db.create_all()
-        _ensure_sqlite_schema()
-        _bootstrap_admin()
+        try:
+            _log_database_target(app)
+            _fail_if_render_uses_sqlite()
+            db.create_all()
+            _ensure_sqlite_schema()
+            _bootstrap_admin()
+        except OperationalError as exc:
+            app.logger.error(
+                "Database startup failed. Check SUPABASE_DB_URL / DATABASE_URL and network access. Error: %s",
+                exc,
+            )
+            raise RuntimeError(
+                "Database connection failed during startup. Verify SUPABASE_DB_URL format and remove conflicting DATABASE_URL."
+            ) from exc
 
     return app
 
 
 def _log_database_target(app):
-    sanitized = db.engine.url.render_as_string(hide_password=True)
+    try:
+        sanitized = db.engine.url.render_as_string(hide_password=True)
+    except Exception:
+        sanitized = app.config.get("SQLALCHEMY_DATABASE_URI", "<missing>")
     app.logger.warning("Active DB: %s", sanitized)
 
 

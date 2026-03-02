@@ -13,15 +13,24 @@ def _normalize_postgres_scheme(url):
     return url
 
 
+def _clean_env_value(value):
+    if not value:
+        return value
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in ("'", '"'):
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
 def _resolve_database_url():
     # 1) Full Supabase URL (highest priority)
-    supabase_db_url = _normalize_postgres_scheme(os.getenv("SUPABASE_DB_URL"))
+    supabase_db_url = _normalize_postgres_scheme(_clean_env_value(os.getenv("SUPABASE_DB_URL")))
     if supabase_db_url:
         return supabase_db_url
 
     # 2) Supabase components (safe for special chars in password)
-    project_ref = os.getenv("SUPABASE_PROJECT_REF")
-    db_password = os.getenv("SUPABASE_DB_PASSWORD")
+    project_ref = _clean_env_value(os.getenv("SUPABASE_PROJECT_REF"))
+    db_password = _clean_env_value(os.getenv("SUPABASE_DB_PASSWORD"))
     if project_ref and db_password:
         encoded_password = quote_plus(db_password)
         return (
@@ -30,7 +39,7 @@ def _resolve_database_url():
         )
 
     # 3) Explicit DATABASE_URL
-    database_url = _normalize_postgres_scheme(os.getenv("DATABASE_URL"))
+    database_url = _normalize_postgres_scheme(_clean_env_value(os.getenv("DATABASE_URL")))
     if database_url:
         return database_url
 

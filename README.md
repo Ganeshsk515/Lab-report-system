@@ -104,9 +104,9 @@ postgresql://postgres:<db-password>@db.<project-ref>.supabase.co:5432/postgres?s
    ```
 
 Resolution priority:
-- `DATABASE_URL`
 - `SUPABASE_DB_URL`
 - `SUPABASE_PROJECT_REF` + `SUPABASE_DB_PASSWORD`
+- `DATABASE_URL`
 - local SQLite fallback
 
 ## Security Question Verification
