@@ -49,6 +49,7 @@ def create_app(config_class=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
     _log_database_target(app)
+    _fail_if_render_uses_sqlite(app)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -83,7 +84,20 @@ def _log_database_target(app):
     except Exception:
         sanitized = "<unparseable>"
 
-    app.logger.info("Active DB: %s", sanitized)
+    app.logger.warning("Active DB: %s", sanitized)
+
+
+def _fail_if_render_uses_sqlite(app):
+    # Render sets RENDER=true for deployed services.
+    is_render = os.getenv("RENDER", "").lower() == "true"
+    if not is_render:
+        return
+
+    db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if db_uri.startswith("sqlite:///"):
+        raise RuntimeError(
+            "Render is using SQLite fallback. Set SUPABASE_DB_URL or DATABASE_URL in Render environment variables."
+        )
 
 
 def _bootstrap_admin():
