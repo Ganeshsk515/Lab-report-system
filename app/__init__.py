@@ -4,7 +4,6 @@ from flask_sqlalchemy import SQLAlchemy
 
 import os
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import inspect
 from sqlalchemy.exc import OperationalError
 
@@ -48,8 +47,6 @@ def create_app(config_class=None):
     config_class = config_class or Config
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
-    _log_database_target(app)
-    _fail_if_render_uses_sqlite(app)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -59,6 +56,8 @@ def create_app(config_class=None):
     app.register_blueprint(main)
 
     with app.app_context():
+        _log_database_target(app)
+        _fail_if_render_uses_sqlite()
         db.create_all()
         _ensure_sqlite_schema()
         _bootstrap_admin()
@@ -67,34 +66,17 @@ def create_app(config_class=None):
 
 
 def _log_database_target(app):
-    raw_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if not raw_url:
-        app.logger.warning("Database URI is empty.")
-        return
-
-    try:
-        split_url = urlsplit(raw_url)
-        if split_url.password:
-            netloc = split_url.netloc.replace(f":{split_url.password}@", ":***@")
-            sanitized = urlunsplit(
-                (split_url.scheme, netloc, split_url.path, split_url.query, split_url.fragment)
-            )
-        else:
-            sanitized = raw_url
-    except Exception:
-        sanitized = "<unparseable>"
-
+    sanitized = db.engine.url.render_as_string(hide_password=True)
     app.logger.warning("Active DB: %s", sanitized)
 
 
-def _fail_if_render_uses_sqlite(app):
+def _fail_if_render_uses_sqlite():
     # Render sets RENDER=true for deployed services.
     is_render = os.getenv("RENDER", "").lower() == "true"
     if not is_render:
         return
 
-    db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if db_uri.startswith("sqlite:///"):
+    if db.engine.url.get_backend_name() == "sqlite":
         raise RuntimeError(
             "Render is using SQLite fallback. Set SUPABASE_DB_URL or DATABASE_URL in Render environment variables."
         )
